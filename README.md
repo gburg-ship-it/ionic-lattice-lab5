@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>HS-PS1-2 Ionic Lattice Virtual Lab</title>
+<style>
+body {font-family: Arial; background:#eef2f7; padding:20px;}
+.container {background:white; padding:20px; border-radius:10px; box-shadow:0 0 15px rgba(0,0,0,0.1);}
+select, button, input, textarea {margin:5px; padding:6px;}
+.panel {margin-top:15px; padding:10px; background:#f4f8ff; border-radius:8px;}
+.correct {color:green; font-weight:bold;}
+.incorrect {color:red; font-weight:bold;}
+.locked {background:#ddd; padding:10px; border-radius:8px;}
+textarea {width:100%; height:70px;}
+
+#animationArea {position:relative; height:400px; border:1px solid #ccc; margin-top:15px; background:white; overflow:hidden;}
+.atom {position:absolute; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:white;}
+.metal {background:#4CAF50;}
+.nonmetal {background:#2196F3;}
+.electron {position:absolute; width:12px; height:12px; background:orange; border-radius:50%;}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h2>HS-PS1-2 Ionic Lattice Virtual Lab</h2>
+
+<label>Metal:</label>
+<select id="metal">
+<option value="Na">Sodium (Na)</option>
+<option value="Mg">Magnesium (Mg)</option>
+<option value="Al">Aluminum (Al)</option>
+</select>
+
+<label>Nonmetal:</label>
+<select id="nonmetal">
+<option value="Cl">Chlorine (Cl)</option>
+<option value="O">Oxygen (O)</option>
+</select>
+
+<br>
+<button onclick="generateReaction()">Generate Reaction</button>
+
+<div id="reactionDisplay" class="panel"></div>
+<div id="balanceSection" class="panel"></div>
+<div id="balanceFeedback"></div>
+<div id="animationArea"></div>
+<div id="electronSummary"></div>
+
+<hr>
+<h3>CER Explanation</h3>
+<div id="cerSection" class="locked">
+<p><em>Balance the equation correctly to unlock CER.</em></p>
+</div>
+<div id="cerFeedback"></div>
+</div>
+
+<script>
+// Valence electrons for metals and nonmetals
+const valence = {Na:1, Mg:2, Al:3, Cl:1, O:2};
+let current = {};
+let correct = {};
+let balanced = false;
+
+function generateReaction() {
+    balanced = false;
+    document.getElementById("animationArea").innerHTML = "";
+    document.getElementById("balanceFeedback").innerHTML = "";
+    document.getElementById("cerSection").className = "locked";
+    document.getElementById("cerSection").innerHTML = "<p><em>Balance correctly to unlock CER.</em></p>";
+
+    const metal = document.getElementById("metal").value;
+    const nonmetal = document.getElementById("nonmetal").value;
+
+    // Define products and correct stoichiometry
+    if(metal==="Na" && nonmetal==="Cl"){correct={m:2,n:2,p:2}; current.product="NaCl";}
+    if(metal==="Mg" && nonmetal==="Cl"){correct={m:1,n:2,p:1}; current.product="MgCl₂";}
+    if(metal==="Al" && nonmetal==="Cl"){correct={m:2,n:6,p:2}; current.product="AlCl₃";}
+    if(metal==="Na" && nonmetal==="O"){correct={m:4,n:2,p:2}; current.product="Na₂O";}
+    if(metal==="Mg" && nonmetal==="O"){correct={m:2,n:2,p:2}; current.product="MgO";}
+    if(metal==="Al" && nonmetal==="O"){correct={m:4,n:6,p:2}; current.product="Al₂O₃";}
+
+    current.metal = metal; current.nonmetal = nonmetal;
+
+    document.getElementById("reactionDisplay").innerHTML =
+        `<strong>Unbalanced:</strong> ${metal} + ${nonmetal} → ${current.product}`;
+
+    document.getElementById("balanceSection").innerHTML = `
+    <input type="number" id="coefM" placeholder="Metal" min="1">
+    <input type="number" id="coefN" placeholder="Nonmetal" min="1">
+    <input type="number" id="coefP" placeholder="Product" min="1">
+    <button onclick="checkBalance()">Check Balance</button>`;
+}
+
+function checkBalance() {
+    const m = parseInt(document.getElementById("coefM").value);
+    const n = parseInt(document.getElementById("coefN").value);
+    const p = parseInt(document.getElementById("coefP").value);
+
+    if(m===correct.m && n===correct.n && p===correct.p){
+        balanced=true;
+        document.getElementById("balanceFeedback").innerHTML="<p class='correct'>Balanced correctly!</p>";
+        animateLattice(correct.m, correct.n);
+        unlockCER();
+    } else {
+        document.getElementById("balanceFeedback").innerHTML="<p class='incorrect'>Not balanced correctly.</p>";
+    }
+}
+
+function animateLattice(metalCount, nonmetalCount){
+    const area = document.getElementById("animationArea");
+    area.innerHTML="";
+    const metal = current.metal;
+    const nonmetal = current.nonmetal;
+    const totalElectrons = metalCount * valence[metal];
+    document.getElementById("electronSummary").innerHTML = `<strong>Total Electrons Transferred:</strong> ${totalElectrons}`;
+
+    // Create metal atoms
+    let metalAtoms=[];
+    for(let i=0;i<metalCount;i++){
+        let atom=createAtom(area,metal,20,50+i*60,"metal");
+        metalAtoms.push(atom);
+    }
+
+    // Create nonmetal atoms
+    let nonmetalAtoms=[];
+    for(let i=0;i<nonmetalCount;i++){
+        let atom=createAtom(area,nonmetal,420,50+i*60,"nonmetal");
+        nonmetalAtoms.push(atom);
+    }
+
+    // Animate electrons and form lattice
+    for(let i=0;i<metalCount;i++){
+        setTimeout(()=>{
+            const metalAtom = metalAtoms[i];
+            const nonmetalAtom = nonmetalAtoms[i];
+            const electrons = valence[metal];
+            for(let e=0;e<electrons;e++){
+                animateElectron(metalAtom, nonmetalAtom, e*20);
+            }
+        }, i*300);
+    }
+}
+
+function animateElectron(metalAtom, nonmetalAtom, offset){
+    const area = document.getElementById("animationArea");
+    const electron = document.createElement("div");
+    electron.className="electron";
+    electron.style.left = metalAtom.offsetLeft + 40 + "px";
+    electron.style.top = metalAtom.offsetTop + 20 + offset + "px";
+    area.appendChild(electron);
+
+    let pos = metalAtom.offsetLeft + 40;
+    let top = metalAtom.offsetTop + 20 + offset;
+    const targetX = nonmetalAtom.offsetLeft + 10;
+    const targetY = nonmetalAtom.offsetTop + 20;
+    const interval = setInterval(()=>{
+        pos += (targetX-pos)/5;
+        top += (targetY-top)/5;
+        electron.style.left = pos+"px";
+        electron.style.top = top+"px";
+        if(Math.abs(pos-targetX)<1 && Math.abs(top-targetY)<1){
+            clearInterval(interval);
+            electron.remove();
+            // Convert atoms to ions and snap together
+            metalAtom.innerText = current.metal+"⁺";
+            metalAtom.style.background="#2e7d32";
+            nonmetalAtom.innerText = current.nonmetal+"⁻";
+            nonmetalAtom.style.background="#1565c0";
+            metalAtom.style.left = 200+"px";
+            nonmetalAtom.style.left = 250+"px";
+            metalAtom.style.top = nonmetalAtom.offsetTop+"px";
+        }
+    },20);
+}
+
+function createAtom(area,label,left,top,type){
+    const atom=document.createElement("div");
+    atom.className="atom "+type;
+    atom.style.left=left+"px";
+    atom.style.top=top+"px";
+    atom.innerText=label;
+    area.appendChild(atom);
+    return atom;
+}
+
+function unlockCER(){
+    document.getElementById("cerSection").className="panel";
+    document.getElementById("cerSection").innerHTML=`
+    <label>Claim:</label><textarea id="claim"></textarea>
+    <label>Evidence (include valence electrons & total electrons transferred):</label><textarea id="evidence"></textarea>
+    <label>Reasoning (connect to periodic trends & ion formation):</label><textarea id="reasoning"></textarea>
+    <button onclick="submitCER()">Submit & Download Report</button>`;
+}
+
+function submitCER(){
+    if(!balanced){document.getElementById("cerFeedback").innerHTML="<p class='incorrect'>Balance first.</p>"; return;}
+    const claim=document.getElementById("claim").value;
+    const evidence=document.getElementById("evidence").value;
+    const reasoning=document.getElementById("reasoning").value;
+    if(!claim||!evidence||!reasoning){document.getElementById("cerFeedback").innerHTML="<p class='incorrect'>Complete all CER sections.</p>"; return;}
+
+    const report = `HS-PS1-2 Ionic Lattice Lab Report
+
+Balanced Equation: ${correct.m} ${current.metal} + ${correct.n} ${current.nonmetal} → ${correct.p} ${current.product}
+Electrons Transferred: ${correct.m*valence[current.metal]}
+
+Claim:
+${claim}
+
+Evidence:
+${evidence}
+
+Reasoning:
+${reasoning}
+
+Submitted: ${new Date().toLocaleString()}`;
+
+    const blob = new Blob([report], {type:"text/plain"});
+    const link=document.createElement("a");
+    link.href=URL.createObjectURL(blob);
+    link.download="HS-PS1-2_Lattice_Lab_Report.txt";
+    link.click();
+    document.getElementById("cerFeedback").innerHTML="<p class='correct'>Report downloaded successfully.</p>";
+}
+</script>
+</body>
+</html>
